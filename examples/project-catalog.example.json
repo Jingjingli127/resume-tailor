@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "project_name": "Customer Churn Modeling",
+      "employer_or_experience": "Example Analytics Company",
+      "source_document_path": "projects/customer-churn/complete-project-story.docx",
+      "broad_project_themes": [
+        "classification",
+        "customer retention",
+        "model evaluation"
+      ],
+      "relevant_role_families": [
+        "data science",
+        "product analytics"
+      ],
+      "supporting_image_types": [
+        "png"
+      ]
+    }
+  ]
+}

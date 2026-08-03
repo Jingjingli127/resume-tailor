@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resume Tailor"
+  short_description: "Tailor resumes from verified project evidence"
+  default_prompt: "Use $resume-tailor to tailor my specified base resume to this job description using confirmed project evidence."

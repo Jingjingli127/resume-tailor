@@ -1,0 +1,36 @@
+# Private source materials
+Projects/
+projects/
+Resumes/
+resumes/
+Job Descriptions/
+job descriptions/
+outputs/
+output/
+
+# Private configuration and generated routing data
+resume-tailor.local.json
+.agents/resume-tailor-project-catalog.json
+**/evidence-map*
+**/coverage-report*
+**/rendered-pages/
+**/temp/
+
+# Documents and images are private by default
+*.docx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.webp
+
+# Python and environment files
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Allow explicitly sanitized examples
+!examples/*.docx
+!examples/*.png

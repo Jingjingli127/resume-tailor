@@ -1,0 +1,17 @@
+{
+  "experience_policy": {
+    "minimum_experiences": 2,
+    "required_experiences": [
+      "Most Recent Employer"
+    ],
+    "optional_experiences": [
+      "Academic Experience"
+    ],
+    "bullet_limits": {
+      "Most Recent Employer": {
+        "minimum": 4,
+        "maximum": 6
+      }
+    }
+  }
+}
