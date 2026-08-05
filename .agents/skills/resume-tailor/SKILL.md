@@ -111,16 +111,21 @@ Wait only when a material claim, sensitive detail, filename conflict, or structu
 
 Draft with a flexible pattern: `Action + problem/scope + method + decision/implementation + outcome`. Prefer substantive evidence and emphasis changes over keyword swaps. Use accurate JD terminology naturally, past tense for completed work, a credible professional voice, and lengths that fit the base layout. Represent the documented level of ownership precisely and do not turn association into causality.
 
+- Begin every Experience bullet with one clear primary action verb. Do not coordinate two opening verbs, such as `Built and optimized` or `Designed and implemented`; select the verb that best represents the primary contribution and describe supporting work later in the sentence.
+- Do not use em dashes (`—`) in resume content because they can make the writing feel AI-generated. Rewrite with a comma, semicolon, colon, parentheses, or a separate sentence. En dashes (`–`) remain appropriate for numeric and date ranges such as `2023–Present`.
+
 ### 8. Audit and deliver
 
-Trace every substantive claim to a current project story, selectively verified image, or confirmed resume fact. Audit requirement coverage, early-bullet strength, project diversity, competency range, technical depth, natural ATS alignment, dates/titles/tools/metrics, confidentiality, and meaningful differentiation from other role-family versions.
+Trace every substantive claim to a current project story, selectively verified image, or confirmed resume fact. Audit requirement coverage, early-bullet strength, project diversity, competency range, technical depth, natural ATS alignment, dates/titles/tools/metrics, confidentiality, single-verb bullet openings, absence of em dashes in resume content, and meaningful differentiation from other role-family versions.
 
 Save to the existing appropriate output folder. If no convention exists, use `Company Name_Job Name_Resume.docx`. Preserve the base resume's visual structure, page count, and density.
 
 Render the base and tailored DOCX with the `documents` skill's `render_docx.py`; inspect every page PNG at 100%. Compare page count, margins, fonts/sizes, sections, indentation, spacing, alignment, wrapping, and page breaks. Iterate and re-render after changes. If LibreOffice is unavailable, perform structural OOXML checks and disclose that visual QA could not be completed.
 
+After the final render passes, clean up task-created working artifacts before delivery. Inventory the exact paths first, then remove only artifacts created during the current tailoring task, including QA PDFs, rendered page PNGs and their output folders, temporary editing or conversion scripts, temporary extracted text, and disposable comparison files. Never remove the final resume, saved JD, source materials, caches owned by another workflow, pre-existing user files, or any artifact whose ownership is uncertain. Verify with a final filesystem check that no task-created QA or temporary artifacts remain outside an intentional temporary/cache location.
+
 Return a concise coverage report with strongly supported, partially supported, and unsupported requirements; project diversity by final bullet; important changes; and claims needing confirmation.
 
 ## Failure conditions
 
-Do not finalize when the base resume is unspecified, required naming is ambiguous, a required experience is absent, an experience violates configured bullet limits, fewer than the configured minimum experiences remain, unresolved material claims remain in draft bullets, a project unintentionally dominates, an existing file would be overwritten, or the latest DOCX has not passed the render gate (except the documented LibreOffice fallback).
+Do not finalize when the base resume is unspecified, required naming is ambiguous, a required experience is absent, an experience violates configured bullet limits, fewer than the configured minimum experiences remain, unresolved material claims remain in draft bullets, a project unintentionally dominates, an existing file would be overwritten, the latest DOCX has not passed the render gate (except the documented LibreOffice fallback), or task-created QA and temporary artifacts have not been cleaned up and verified.
