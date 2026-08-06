@@ -29,6 +29,7 @@ The evidence-verification and document-QA workflow is profession-agnostic. Suppo
 - Labels evidence as Confirmed, Needs confirmation, or Unsupported
 - Uses a lightweight project catalog and hash-invalidated local retrieval cache
 - Verifies shortlisted evidence against original DOCX sections
+- Distinguishes direct, transferable, and unsupported project evidence without blocking stretch applications
 - Preserves the base resume's structure and visual hierarchy
 - Supports private, workspace-specific experience policies
 - Prevents silent overwrites and requires rendered document QA
@@ -114,7 +115,9 @@ The catalog helps decide which projects are likely to matter for a JD, but delib
 
 `retrieve-project-evidence.py` separates the JD into responsibilities, minimum qualifications, role context, and preferred qualifications, then ranks project-story sections independently for every requirement. Responsibilities and minimum qualifications receive more weight than preferred qualifications. The script combines lexical BM25-style ranking, limited concept expansion, catalog routing metadata, heading-aware weighting, and per-project and per-requirement result caps.
 
-The per-project cap prevents one highly similar project from crowding every other project out of a requirement's candidate set. Primary action, method, testing, and result sections receive preference, while derivative interview summaries are down-weighted. JSON output includes each requirement and its candidates plus a deduplicated portfolio shortlist aggregated with weighted reciprocal rank. Flat whole-JD ranking remains available only as a diagnostic fallback.
+The per-project cap prevents one highly similar project from crowding every other project out of a requirement's candidate set. Primary action, method, testing, and result sections receive preference, while derivative interview summaries are down-weighted.
+
+Candidates are labeled `direct`, `transferable`, or `no_confirmed_evidence` from their exact, distinctive, and concept coverage against the original section text. These labels are advisory rather than application gates: transferable evidence must not claim the missing domain, and absent evidence does not prevent the workflow from producing a truthful stretch-application resume. JSON output includes a non-blocking resume strategy for every requirement and a deduplicated portfolio shortlist that excludes unsupported candidates. Flat whole-JD ranking remains available only as a diagnostic fallback.
 
 ### 3. Hash-invalidated local cache
 

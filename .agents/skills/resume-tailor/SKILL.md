@@ -79,6 +79,14 @@ Read `references/retrieval-workflow.md` and use its staged retrieval process:
 5. When evidence spans ownership, method, and result sections, add `--context-sections 1` or increase it selectively. Combine sections only when they clearly describe the same project scope and remain mutually consistent.
 6. Read additional projects when ownership, context, methods, or results remain unclear.
 
+Treat retrieval classifications as advisory portfolio guidance:
+
+- `direct`: the section explicitly covers a substantial share of the requirement and its distinctive terms;
+- `transferable`: the section supports an adjacent competency but not the full domain or method;
+- `no_confirmed_evidence`: project-story evidence is too weak, or the requirement is a credential that belongs in another source.
+
+Never let `transferable` wording claim the missing domain or method. Never let `no_confirmed_evidence` stop resume generation by itself; omit the unsupported claim and continue with stronger adjacent evidence. Retrieval classifications remain candidates until direct source verification.
+
 Search across multiple projects before choosing evidence, but do not load every complete document into context by default. Use selective image inspection only when the document refers to an image, evidence may be missing, a UI clarifies the work, a chart may verify a result, or verification is needed.
 
 Build an ephemeral map with: JD requirement; best supporting project; specific component; confirmed evidence; source section; status; strength; recommended angle; clarification needed. Do not save detailed evidence as a reusable index.

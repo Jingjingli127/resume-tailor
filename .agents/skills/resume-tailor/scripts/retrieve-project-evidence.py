@@ -66,6 +66,11 @@ JD_HEADING_CATEGORIES = (
     (("responsibilities", "key responsibilities", "what the role entails", "what you'll do", "what you will do"), "responsibility"),
     (("about the team", "about the role", "job description", "role overview", "position summary", "business unit"), "role_context"),
 )
+CLASSIFICATION_PRIORITY = {
+    "no_confirmed_evidence": 0,
+    "transferable": 1,
+    "direct": 2,
+}
 
 
 def tokens(text):
@@ -162,6 +167,76 @@ def requirements_from_text(text):
         looks_like_heading = detected is not None and len(tokens(line)) <= 8
         blocks.append((line, looks_like_heading))
     return requirement_records_from_blocks(blocks)
+
+
+def is_credential_requirement(text):
+    normalized = normalized_heading(text)
+    degree_requirement = re.search(r"\b(?:bachelor|master)\s+s?\s*degree\b", normalized)
+    experience_duration = re.search(r"\b\d+\+?\s+years?\b", normalized)
+    return degree_requirement is not None or "phd" in normalized or "doctorate" in normalized or experience_duration is not None
+
+
+def candidate_strength(requirement_text, evidence_text, document_frequencies, document_count):
+    requirement_terms = set(tokens(requirement_text))
+    evidence_terms = set(tokens(evidence_text))
+    if not requirement_terms:
+        return {
+            "classification": "no_confirmed_evidence",
+            "confidence": 0.0,
+            "exact_coverage": 0.0,
+            "distinctive_coverage": 0.0,
+            "concept_coverage": 0.0,
+            "reason": "The requirement has no rankable terms.",
+        }
+
+    exact_matches = requirement_terms & evidence_terms
+    exact_coverage = len(exact_matches) / len(requirement_terms)
+    distinctive_terms = {
+        term for term in requirement_terms
+        if document_frequencies.get(term, 0) / max(document_count, 1) <= 0.15
+    }
+    distinctive_coverage = (
+        len(distinctive_terms & evidence_terms) / len(distinctive_terms)
+        if distinctive_terms else exact_coverage
+    )
+    expanded_terms = set(expanded_query(requirement_text)) - requirement_terms
+    concept_coverage = (
+        len(expanded_terms & evidence_terms) / len(expanded_terms)
+        if expanded_terms else 0.0
+    )
+    confidence = min(1.0, 0.65 * exact_coverage + 0.25 * distinctive_coverage + 0.10 * concept_coverage)
+
+    if is_credential_requirement(requirement_text):
+        classification = "no_confirmed_evidence"
+        reason = "Credential or experience-duration requirements must be checked outside project-story evidence."
+    elif exact_coverage >= 0.35 and (distinctive_coverage >= 0.25 or len(requirement_terms) <= 4):
+        classification = "direct"
+        reason = "The section explicitly covers a substantial share of the requirement and its distinctive terms."
+    elif exact_coverage >= 0.12 or concept_coverage >= 0.20:
+        classification = "transferable"
+        reason = "The section supports an adjacent competency but does not directly cover the full requirement."
+    else:
+        classification = "no_confirmed_evidence"
+        reason = "Lexical and concept coverage are too weak to treat this section as supporting evidence."
+
+    return {
+        "classification": classification,
+        "confidence": round(confidence, 4),
+        "exact_coverage": round(exact_coverage, 4),
+        "distinctive_coverage": round(distinctive_coverage, 4),
+        "concept_coverage": round(concept_coverage, 4),
+        "matched_exact_terms": sorted(exact_matches),
+        "unmatched_distinctive_terms": sorted(distinctive_terms - evidence_terms),
+        "reason": reason,
+    }
+
+
+def requirement_strategy(classification):
+    if classification == "direct":
+        return "Verify the source, then emphasize the confirmed evidence prominently."
+    if classification == "transferable":
+        return "Verify the adjacent competency and frame it as transferable without claiming the missing domain or method."
+    return "Do not claim this requirement directly; continue the application using stronger adjacent evidence elsewhere."
 
 
 def heading_weight(heading):
@@ -344,6 +419,13 @@ def main():
             })
 
     document_tokens = [tokens(item["ranking_text"]) for item in candidates]
+    evidence_tokens = [
+        tokens(item["section"]["heading"] + " " + item["section"]["text"])
+        for item in candidates
+    ]
+    evidence_document_frequencies = Counter()
+    for section_tokens in evidence_tokens:
+        evidence_document_frequencies.update(set(section_tokens))
 
     def result_for(item, score, requirement=None):
         project, section = item["project"], item["section"]
@@ -365,6 +447,20 @@ def main():
         if requirement:
             result["requirement_id"] = requirement["requirement_id"]
             result["requirement_category"] = requirement["category"]
+            result["evidence_strength"] = candidate_strength(
+                requirement["text"],
+                section["heading"] + " " + section["text"],
+                evidence_document_frequencies,
+                len(candidates),
+            )
+            if (
+                result["section_type"] == "derivative-summary"
+                and result["evidence_strength"]["classification"] == "direct"
+            ):
+                result["evidence_strength"]["classification"] = "transferable"
+                result["evidence_strength"]["reason"] = (
+                    "Derivative summary sections may route to evidence but cannot establish a direct match."
+                )
         return result
 
     def rank_for_query(text, weight=1.0, limit=None):
@@ -393,8 +489,29 @@ def main():
         for requirement in requirements:
             ranked = rank_for_query(requirement["text"], requirement["weight"], args.per_requirement)
             matches = [result_for(item, score, requirement) for item, score in ranked]
-            requirement_results.append({**requirement, "candidates": matches})
-            for rank, match in enumerate(matches, 1):
+            suggested_matches = [
+                match for match in matches
+                if match["evidence_strength"]["classification"] != "no_confirmed_evidence"
+            ]
+            if suggested_matches:
+                best_classification = max(
+                    suggested_matches,
+                    key=lambda match: (
+                        CLASSIFICATION_PRIORITY[match["evidence_strength"]["classification"]],
+                        match["evidence_strength"]["confidence"],
+                    ),
+                )["evidence_strength"]["classification"]
+            else:
+                best_classification = "no_confirmed_evidence"
+            requirement_results.append({
+                **requirement,
+                "evidence_classification": best_classification,
+                "resume_strategy": requirement_strategy(best_classification),
+                "blocks_resume_generation": False,
+                "suggested_candidates": suggested_matches,
+                "retrieval_candidates": matches,
+            })
+            for rank, match in enumerate(suggested_matches, 1):
                 key = (match["source_document_path"], match["section_index"])
                 prior_requirements = portfolio_by_section.get(key, {}).get("matched_requirements", [])
                 prior_portfolio_score = portfolio_by_section.get(key, {}).get("portfolio_score", 0.0)
@@ -428,9 +545,11 @@ def main():
         print(payload["notice"])
         if payload["mode"] == "requirements":
             for requirement in requirement_results:
-                print(f"\n# {requirement['requirement_id']} [{requirement['category']}, weight {requirement['weight']}] {requirement['text']}")
-                for index, result in enumerate(requirement["candidates"], 1):
-                    print(f"\n## {index}. {result['project_name']} - {result['heading']} (score {result['score']})")
+                print(f"\n# {requirement['requirement_id']} [{requirement['category']}, {requirement['evidence_classification']}, weight {requirement['weight']}] {requirement['text']}")
+                print(f"Strategy: {requirement['resume_strategy']}")
+                for index, result in enumerate(requirement["retrieval_candidates"], 1):
+                    strength = result["evidence_strength"]
+                    print(f"\n## {index}. {result['project_name']} - {result['heading']} (score {result['score']}, {strength['classification']}, confidence {strength['confidence']})")
                     print(f"Source: {result['source_document_path']} | section {result['section_index']} | paragraphs {result['paragraph_start']}-{result['paragraph_end']}")
                     print(result["excerpt"])
             return

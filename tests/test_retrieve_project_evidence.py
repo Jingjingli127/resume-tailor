@@ -55,6 +55,46 @@ class RequirementParsingTests(unittest.TestCase):
         )
 
 
+class CandidateStrengthTests(unittest.TestCase):
+    def classify(self, requirement, evidence):
+        return MODULE.candidate_strength(requirement, evidence, {}, 10)
+
+    def test_direct_evidence_requires_substantial_explicit_coverage(self):
+        result = self.classify(
+            "Build Python SQL forecasting pipelines",
+            "Built Python SQL forecasting pipelines for product planning",
+        )
+        self.assertEqual(result["classification"], "direct")
+
+    def test_adjacent_competency_is_transferable(self):
+        result = self.classify(
+            "Build warehouse dashboards for labor efficiency",
+            "Built interactive dashboards for business performance and executive decisions",
+        )
+        self.assertEqual(result["classification"], "transferable")
+
+    def test_weak_overlap_is_no_confirmed_evidence(self):
+        result = self.classify(
+            "Experience with ads recommendation ecommerce and search",
+            "Built litigation analytics for legal case comparison",
+        )
+        self.assertEqual(result["classification"], "no_confirmed_evidence")
+
+    def test_credentials_are_not_confirmed_by_project_stories(self):
+        result = self.classify(
+            "5+ years of data science experience",
+            "Built data science models and analytics workflows",
+        )
+        self.assertEqual(result["classification"], "no_confirmed_evidence")
+
+    def test_possessive_degree_wording_is_a_credential(self):
+        result = self.classify(
+            "Bachelor's degree in Statistics or Computer Science",
+            "Applied statistics and computer science methods in an analytics project",
+        )
+        self.assertEqual(result["classification"], "no_confirmed_evidence")
+
+
 class RetrievalCliTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -103,8 +143,15 @@ class RetrievalCliTests(unittest.TestCase):
         self.assertEqual(payload["mode"], "requirements")
         self.assertEqual(len(payload["requirements"]), 2)
         self.assertEqual(payload["requirements"][0]["category"], "responsibility")
-        self.assertTrue(payload["requirements"][0]["candidates"])
+        self.assertEqual(payload["requirements"][0]["evidence_classification"], "direct")
+        self.assertTrue(payload["requirements"][0]["suggested_candidates"])
+        self.assertFalse(payload["requirements"][0]["blocks_resume_generation"])
         self.assertEqual(payload["requirements"][1]["category"], "preferred_qualification")
+        self.assertEqual(
+            payload["requirements"][1]["evidence_classification"],
+            "no_confirmed_evidence",
+        )
+        self.assertEqual(payload["requirements"][1]["suggested_candidates"], [])
         self.assertIn("portfolio_score", payload["results"][0])
 
     def test_combined_inputs_receive_unique_requirement_ids(self):
