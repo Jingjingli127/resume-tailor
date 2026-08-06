@@ -43,6 +43,17 @@ class RequirementParsingTests(unittest.TestCase):
         self.assertEqual(len(requirements), 1)
         self.assertEqual(requirements[0]["category"], "other")
 
+    def test_position_summary_is_role_context(self):
+        requirements = MODULE.requirements_from_text(
+            "Position Summary\nSupport operations through advanced analytics and scalable reporting.\n"
+            "Job Responsibilities\nBuild automated dashboards."
+        )
+
+        self.assertEqual(
+            [item["category"] for item in requirements],
+            ["role_context", "responsibility"],
+        )
+
 
 class RetrievalCliTests(unittest.TestCase):
     def setUp(self):

@@ -64,7 +64,7 @@ JD_HEADING_CATEGORIES = (
     (("minimum qualification", "required qualification", "requirements", "who we look for"), "minimum_qualification"),
     (("preferred qualification", "preferred skills", "nice to have"), "preferred_qualification"),
     (("responsibilities", "key responsibilities", "what the role entails", "what you'll do", "what you will do"), "responsibility"),
-    (("about the team", "about the role", "job description", "role overview", "business unit"), "role_context"),
+    (("about the team", "about the role", "job description", "role overview", "position summary", "business unit"), "role_context"),
 )
 
 
