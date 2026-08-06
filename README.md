@@ -82,7 +82,10 @@ Complete project stories
 Lightweight project catalog
         |
         v
-JD-driven section retrieval
+Weighted JD requirements
+        |
+        v
+Per-requirement section retrieval
         |
         v
 Direct source verification
@@ -109,9 +112,9 @@ The catalog helps decide which projects are likely to matter for a JD, but delib
 
 ### 2. JD-driven section retrieval
 
-`retrieve-project-evidence.py` extracts heading-based sections from the current DOCX files and ranks them against the complete JD. It combines lexical BM25-style ranking, limited concept expansion, catalog routing metadata, heading-aware weighting, and a per-project result cap.
+`retrieve-project-evidence.py` separates the JD into responsibilities, minimum qualifications, role context, and preferred qualifications, then ranks project-story sections independently for every requirement. Responsibilities and minimum qualifications receive more weight than preferred qualifications. The script combines lexical BM25-style ranking, limited concept expansion, catalog routing metadata, heading-aware weighting, and per-project and per-requirement result caps.
 
-The per-project cap prevents one highly similar project from crowding every other project out of the candidate set. Primary action, method, testing, and result sections receive preference, while derivative interview summaries are down-weighted.
+The per-project cap prevents one highly similar project from crowding every other project out of a requirement's candidate set. Primary action, method, testing, and result sections receive preference, while derivative interview summaries are down-weighted. JSON output includes each requirement and its candidates plus a deduplicated portfolio shortlist aggregated with weighted reciprocal rank. Flat whole-JD ranking remains available only as a diagnostic fallback.
 
 ### 3. Hash-invalidated local cache
 

@@ -50,6 +50,8 @@ Produce a structured analysis of:
 
 Separate `Core requirements`, `Supporting requirements`, `ATS keywords`, `Preferred but nonessential`, and `No confirmed evidence`. Weight responsibilities and role context more heavily than keyword repetition.
 
+Keep requirement boundaries intact for retrieval. Do not collapse the JD into a single keyword query.
+
 ### 3. Read the selected base resume
 
 Require the user to identify one base resume. Record its page size/count, margins, fonts, sizes, colors, section order/headings, employer and position order, dates, locations, indentation, bullet style/count, spacing, alignment, header, and contact layout.
@@ -71,7 +73,7 @@ Apply these experience-selection rules:
 Read `references/retrieval-workflow.md` and use its staged retrieval process:
 
 1. Route broadly with the lightweight catalog.
-2. Run `scripts/retrieve-project-evidence.py` against the complete saved JD to rank heading-based sections locally.
+2. Run `scripts/retrieve-project-evidence.py` against the complete saved JD. Use its default requirement-level mode to separate and weight responsibilities, minimum qualifications, role context, and preferred qualifications, then review candidates for each requirement. Use `--mode flat` only as a diagnostic fallback for an unstructured query.
 3. Use the hash-invalidated cache only as disposable acceleration data. Never treat cached text or rankings as evidence.
 4. Re-open each shortlisted section directly from its original DOCX with `--verify-path` and `--section-index` before classifying a claim as confirmed.
 5. When evidence spans ownership, method, and result sections, add `--context-sections 1` or increase it selectively. Combine sections only when they clearly describe the same project scope and remain mutually consistent.
