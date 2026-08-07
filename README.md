@@ -38,13 +38,18 @@ The evidence-verification and document-QA workflow is profession-agnostic. Suppo
 
 Clone the repository into a workspace or copy `.agents/skills/resume-tailor/` into the corresponding project-scoped skills directory.
 
-Install the Python dependencies:
+Install the two Python dependencies:
 
 ```powershell
 py -m pip install -r requirements.txt
 ```
 
-Python 3.11 or newer is recommended. Microsoft Word is supported by the included Windows PDF-export helper. A compatible DOCX-to-PDF renderer such as LibreOffice can be used on other systems.
+Python 3.11 or newer is recommended. `python-docx` handles DOCX files, while PyMuPDF converts QA PDFs into page images. The skill does not require `pdf2image` or Poppler.
+
+For DOCX-to-PDF conversion, use one renderer, not both:
+
+- On Windows with Microsoft Word, use the included `export-word-pdf.ps1` helper.
+- Otherwise, install LibreOffice or use a compatible renderer already available in your environment.
 
 ## Workspace setup
 

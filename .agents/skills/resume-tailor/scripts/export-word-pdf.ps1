@@ -17,5 +17,15 @@ try {
 } finally {
     if ($null -ne $document) { $document.Close($false) }
     if ($null -ne $word) { $word.Quit() }
+    if ($null -ne $document) {
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($document)
+    }
+    if ($null -ne $word) {
+        [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word)
+    }
+    $document = $null
+    $word = $null
+    [GC]::Collect()
+    [GC]::WaitForPendingFinalizers()
 }
 Write-Output "Exported PDF successfully."

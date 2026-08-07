@@ -7,9 +7,17 @@ description: Tailor an existing Word resume to a pasted job description by selec
 
 Tailor evidence, not keywords. Treat complete project-story documents as the primary source of truth and the user-selected resume as the formatting template and source for stable resume facts.
 
-## Required companion skill
+## DOCX support
 
-Use the installed `documents` skill whenever reading, creating, editing, or rendering DOCX files. Read its task guidance for DOCX reading/editing and rendering. Preserve an existing resume with minimal, local formatting changes; do not apply a new design preset.
+Use the installed `documents` skill when available for DOCX reading and editing guidance. Preserve an existing resume with minimal, local formatting changes; do not apply a new design preset.
+
+For visual QA, prefer this skill's lightweight bundled path so users do not need overlapping PDF stacks:
+
+1. On Windows with Microsoft Word, export DOCX to PDF with `scripts/export-word-pdf.ps1`.
+2. Otherwise, use an available LibreOffice installation for DOCX-to-PDF conversion.
+3. Render the resulting PDF to page PNGs with `scripts/render-pdf-pages.py`.
+
+This path requires only the packages in the repository's `requirements.txt`. Do not require `pdf2image` or Poppler. Use another renderer, including the `documents` skill's renderer, only when its dependencies are already available; do not ask the user to install a second rendering stack merely for redundancy.
 
 ## Guardrails
 
@@ -132,7 +140,7 @@ Save to the existing appropriate output folder. If no convention exists, use `Co
 
 Prioritize first-page value and utilization because some reviewers may not continue to page 2. Put the strongest, most role-relevant evidence on page 1 and use its available space well. Avoid manual page breaks, content ordering, or premature section moves that leave material avoidable whitespace on page 1. Prefer moving relevant content forward or rebalancing natural breaks before changing typography or spacing; never make the page crowded, reduce readability, shrink text below the base resume's size, or add filler merely to make page 1 look full.
 
-Render the base and tailored DOCX with the `documents` skill's `render_docx.py`; inspect every page PNG at 100%. Compare page count, margins, fonts/sizes, sections, indentation, spacing, alignment, wrapping, page breaks, and first-page utilization. Iterate and re-render after changes. If LibreOffice is unavailable, perform structural OOXML checks and disclose that visual QA could not be completed.
+Export the base and tailored DOCX to PDF with the bundled Word helper on Windows or LibreOffice elsewhere, then create page PNGs with `scripts/render-pdf-pages.py`. Inspect every page PNG at 100%. Compare page count, margins, fonts/sizes, sections, indentation, spacing, alignment, wrapping, page breaks, and first-page utilization. Iterate and re-render after changes. If neither Word nor LibreOffice is available, perform structural OOXML checks and disclose that visual QA could not be completed. Do not install or require `pdf2image` or Poppler for this workflow.
 
 After the final render passes, clean up task-created working artifacts before delivery. Inventory the exact paths first, then remove only artifacts created during the current tailoring task, including QA PDFs, rendered page PNGs and their output folders, temporary editing or conversion scripts, temporary extracted text, and disposable comparison files. Never remove the final resume, saved JD, source materials, caches owned by another workflow, pre-existing user files, or any artifact whose ownership is uncertain. Verify with a final filesystem check that no task-created QA or temporary artifacts remain outside an intentional temporary/cache location.
 

@@ -54,6 +54,18 @@ class RequirementParsingTests(unittest.TestCase):
             ["role_context", "responsibility"],
         )
 
+    def test_short_required_and_preferred_headings_are_weighted(self):
+        requirements = MODULE.requirements_from_text(
+            "Workstreams & Tasks\nBuild reproducible data pipelines.\n"
+            "Required\nUse Python and SQL.\n"
+            "Preferred\nExperience with cloud platforms."
+        )
+
+        self.assertEqual(
+            [item["category"] for item in requirements],
+            ["responsibility", "minimum_qualification", "preferred_qualification"],
+        )
+
 
 class CandidateStrengthTests(unittest.TestCase):
     def classify(self, requirement, evidence):

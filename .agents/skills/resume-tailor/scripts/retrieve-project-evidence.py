@@ -61,10 +61,10 @@ REQUIREMENT_CATEGORY_WEIGHTS = {
     "other": 1.00,
 }
 JD_HEADING_CATEGORIES = (
-    (("minimum qualification", "required qualification", "requirements", "who we look for"), "minimum_qualification"),
-    (("preferred qualification", "preferred skills", "nice to have"), "preferred_qualification"),
-    (("responsibilities", "key responsibilities", "what the role entails", "what you'll do", "what you will do"), "responsibility"),
-    (("about the team", "about the role", "job description", "role overview", "position summary", "business unit"), "role_context"),
+    (("minimum qualification", "required qualification", "requirements", "who we look for", "required"), "minimum_qualification"),
+    (("preferred qualification", "preferred skills", "nice to have", "preferred"), "preferred_qualification"),
+    (("responsibilities", "key responsibilities", "workstreams tasks", "what the role entails", "what you'll do", "what you will do"), "responsibility"),
+    (("about the team", "about the role", "job description", "role overview", "position summary", "business unit", "data analyst development"), "role_context"),
 )
 CLASSIFICATION_PRIORITY = {
     "no_confirmed_evidence": 0,
