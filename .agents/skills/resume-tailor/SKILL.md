@@ -7,9 +7,17 @@ description: Tailor an existing Word resume to a pasted job description by selec
 
 Tailor evidence, not keywords. Treat complete project-story documents as the primary source of truth and the user-selected resume as the formatting template and source for stable resume facts.
 
-## Required companion skill
+## DOCX support
 
-Use the installed `documents` skill whenever reading, creating, editing, or rendering DOCX files. Read its task guidance for DOCX reading/editing and rendering. Preserve an existing resume with minimal, local formatting changes; do not apply a new design preset.
+Use the installed `documents` skill when available for DOCX reading and editing guidance. Preserve an existing resume with minimal, local formatting changes; do not apply a new design preset.
+
+For visual QA, prefer this skill's lightweight bundled path so users do not need overlapping PDF stacks:
+
+1. On Windows with Microsoft Word, export DOCX to PDF with `scripts/export-word-pdf.ps1`.
+2. Otherwise, use an available LibreOffice installation for DOCX-to-PDF conversion.
+3. Render the resulting PDF to page PNGs with `scripts/render-pdf-pages.py`.
+
+This path requires only the packages in the repository's `requirements.txt`. Do not require `pdf2image` or Poppler. Use another renderer, including the `documents` skill's renderer, only when its dependencies are already available; do not ask the user to install a second rendering stack merely for redundancy.
 
 ## Guardrails
 
@@ -50,6 +58,8 @@ Produce a structured analysis of:
 
 Separate `Core requirements`, `Supporting requirements`, `ATS keywords`, `Preferred but nonessential`, and `No confirmed evidence`. Weight responsibilities and role context more heavily than keyword repetition.
 
+Keep requirement boundaries intact for retrieval. Do not collapse the JD into a single keyword query.
+
 ### 3. Read the selected base resume
 
 Require the user to identify one base resume. Record its page size/count, margins, fonts, sizes, colors, section order/headings, employer and position order, dates, locations, indentation, bullet style/count, spacing, alignment, header, and contact layout.
@@ -71,11 +81,19 @@ Apply these experience-selection rules:
 Read `references/retrieval-workflow.md` and use its staged retrieval process:
 
 1. Route broadly with the lightweight catalog.
-2. Run `scripts/retrieve-project-evidence.py` against the complete saved JD to rank heading-based sections locally.
+2. Run `scripts/retrieve-project-evidence.py` against the complete saved JD. Use its default requirement-level mode to separate and weight responsibilities, minimum qualifications, role context, and preferred qualifications, then review candidates for each requirement. Use `--mode flat` only as a diagnostic fallback for an unstructured query.
 3. Use the hash-invalidated cache only as disposable acceleration data. Never treat cached text or rankings as evidence.
 4. Re-open each shortlisted section directly from its original DOCX with `--verify-path` and `--section-index` before classifying a claim as confirmed.
 5. When evidence spans ownership, method, and result sections, add `--context-sections 1` or increase it selectively. Combine sections only when they clearly describe the same project scope and remain mutually consistent.
 6. Read additional projects when ownership, context, methods, or results remain unclear.
+
+Treat retrieval classifications as advisory portfolio guidance:
+
+- `direct`: the section explicitly covers a substantial share of the requirement and its distinctive terms;
+- `transferable`: the section supports an adjacent competency but not the full domain or method;
+- `no_confirmed_evidence`: project-story evidence is too weak, or the requirement is a credential that belongs in another source.
+
+Never let `transferable` wording claim the missing domain or method. Never let `no_confirmed_evidence` stop resume generation by itself; omit the unsupported claim and continue with stronger adjacent evidence. Retrieval classifications remain candidates until direct source verification.
 
 Search across multiple projects before choosing evidence, but do not load every complete document into context by default. Use selective image inspection only when the document refers to an image, evidence may be missing, a UI clarifies the work, a chart may verify a result, or verification is needed.
 
@@ -122,7 +140,7 @@ Save to the existing appropriate output folder. If no convention exists, use `Co
 
 Prioritize first-page value and utilization because some reviewers may not continue to page 2. Put the strongest, most role-relevant evidence on page 1 and use its available space well. Avoid manual page breaks, content ordering, or premature section moves that leave material avoidable whitespace on page 1. Prefer moving relevant content forward or rebalancing natural breaks before changing typography or spacing; never make the page crowded, reduce readability, shrink text below the base resume's size, or add filler merely to make page 1 look full.
 
-Render the base and tailored DOCX with the `documents` skill's `render_docx.py`; inspect every page PNG at 100%. Compare page count, margins, fonts/sizes, sections, indentation, spacing, alignment, wrapping, page breaks, and first-page utilization. Iterate and re-render after changes. If LibreOffice is unavailable, perform structural OOXML checks and disclose that visual QA could not be completed.
+Export the base and tailored DOCX to PDF with the bundled Word helper on Windows or LibreOffice elsewhere, then create page PNGs with `scripts/render-pdf-pages.py`. Inspect every page PNG at 100%. Compare page count, margins, fonts/sizes, sections, indentation, spacing, alignment, wrapping, page breaks, and first-page utilization. Iterate and re-render after changes. If neither Word nor LibreOffice is available, perform structural OOXML checks and disclose that visual QA could not be completed. Do not install or require `pdf2image` or Poppler for this workflow.
 
 After the final render passes, clean up task-created working artifacts before delivery. Inventory the exact paths first, then remove only artifacts created during the current tailoring task, including QA PDFs, rendered page PNGs and their output folders, temporary editing or conversion scripts, temporary extracted text, and disposable comparison files. Never remove the final resume, saved JD, source materials, caches owned by another workflow, pre-existing user files, or any artifact whose ownership is uncertain. Verify with a final filesystem check that no task-created QA or temporary artifacts remain outside an intentional temporary/cache location.
 

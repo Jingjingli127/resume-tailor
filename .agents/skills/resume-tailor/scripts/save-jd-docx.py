@@ -53,8 +53,13 @@ def main() -> None:
         is_heading = line in {
             "Responsibilities", "About the Team", "Qualifications",
             "Minimum Qualifications", "Preferred Qualifications",
-            "Responsibilities - What You'll Do"
+            "Responsibilities - What You'll Do", "Workstreams & Tasks",
+            "Data Analyst Development", "Required", "Preferred",
         }
+        paragraph.paragraph_format.keep_together = True
+        if is_heading:
+            paragraph.paragraph_format.space_before = Pt(7)
+            paragraph.paragraph_format.space_after = Pt(4)
         run = paragraph.add_run(line)
         run.bold = is_heading
         run.font.name = "Arial"

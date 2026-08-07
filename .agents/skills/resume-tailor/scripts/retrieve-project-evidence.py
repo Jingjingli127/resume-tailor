@@ -53,6 +53,25 @@ PRIMARY_HEADINGS = (
     "data pipeline", "feature engineering", "evaluation", "testing", "post-production", "post-launch"
 )
 
+REQUIREMENT_CATEGORY_WEIGHTS = {
+    "responsibility": 1.35,
+    "minimum_qualification": 1.25,
+    "role_context": 1.10,
+    "preferred_qualification": 0.80,
+    "other": 1.00,
+}
+JD_HEADING_CATEGORIES = (
+    (("minimum qualification", "required qualification", "requirements", "who we look for", "required"), "minimum_qualification"),
+    (("preferred qualification", "preferred skills", "nice to have", "preferred"), "preferred_qualification"),
+    (("responsibilities", "key responsibilities", "workstreams tasks", "what the role entails", "what you'll do", "what you will do"), "responsibility"),
+    (("about the team", "about the role", "job description", "role overview", "position summary", "business unit", "data analyst development"), "role_context"),
+)
+CLASSIFICATION_PRIORITY = {
+    "no_confirmed_evidence": 0,
+    "transferable": 1,
+    "direct": 2,
+}
+
 
 def tokens(text):
     values = [m.group(0).lower().strip("./-") for m in TOKEN_RE.finditer(text)]
@@ -64,6 +83,160 @@ def expanded_query(text):
     for token in list(result):
         result.extend(EXPANSIONS.get(token, []))
     return result
+
+
+def normalized_heading(text):
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+
+def heading_category(text):
+    normalized = normalized_heading(text)
+    for labels, category in JD_HEADING_CATEGORIES:
+        if any(label in normalized for label in labels):
+            return category
+    return None
+
+
+def split_requirement_text(text):
+    text = re.sub(r"^[\s\-\u2022*]+", "", text).strip()
+    if not text:
+        return []
+    # Preserve normal prose paragraphs. Split only explicit semicolon-delimited lists.
+    parts = [part.strip() for part in re.split(r"\s*;\s+(?=[A-Z])", text) if part.strip()]
+    return parts or [text]
+
+
+def requirement_records_from_blocks(blocks):
+    requirements = []
+    has_category_headings = any(
+        heading_category(text) is not None and (is_heading or len(tokens(text)) <= 8)
+        for text, is_heading in blocks
+    )
+    category = None if has_category_headings else "other"
+    for text, is_heading in blocks:
+        text = text.strip()
+        if not text:
+            continue
+        detected = heading_category(text) if is_heading or len(tokens(text)) <= 8 else None
+        if is_heading or detected:
+            if detected:
+                category = detected
+            if is_heading or len(tokens(text)) <= 8:
+                continue
+        if category is None:
+            continue
+        for statement in split_requirement_text(text):
+            if len(tokens(statement)) < 2:
+                continue
+            requirements.append({
+                "requirement_id": f"R{len(requirements) + 1}",
+                "category": category,
+                "weight": REQUIREMENT_CATEGORY_WEIGHTS[category],
+                "text": statement,
+            })
+    return requirements
+
+
+def requirements_from_docx(path: Path):
+    document = Document(path)
+    blocks = []
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+        style = paragraph.style.name.lower() if paragraph.style else ""
+        detected = heading_category(text)
+        is_heading = style.startswith(("heading", "title")) or (detected is not None and len(tokens(text)) <= 8)
+        blocks.append((text, is_heading))
+    for table in document.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    if paragraph.text.strip():
+                        blocks.append((paragraph.text.strip(), False))
+    return requirement_records_from_blocks(blocks)
+
+
+def requirements_from_text(text):
+    blocks = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        detected = heading_category(line)
+        looks_like_heading = detected is not None and len(tokens(line)) <= 8
+        blocks.append((line, looks_like_heading))
+    return requirement_records_from_blocks(blocks)
+
+
+def is_credential_requirement(text):
+    normalized = normalized_heading(text)
+    degree_requirement = re.search(r"\b(?:bachelor|master)\s+s?\s*degree\b", normalized)
+    experience_duration = re.search(r"\b\d+\+?\s+years?\b", normalized)
+    return degree_requirement is not None or "phd" in normalized or "doctorate" in normalized or experience_duration is not None
+
+
+def candidate_strength(requirement_text, evidence_text, document_frequencies, document_count):
+    requirement_terms = set(tokens(requirement_text))
+    evidence_terms = set(tokens(evidence_text))
+    if not requirement_terms:
+        return {
+            "classification": "no_confirmed_evidence",
+            "confidence": 0.0,
+            "exact_coverage": 0.0,
+            "distinctive_coverage": 0.0,
+            "concept_coverage": 0.0,
+            "reason": "The requirement has no rankable terms.",
+        }
+
+    exact_matches = requirement_terms & evidence_terms
+    exact_coverage = len(exact_matches) / len(requirement_terms)
+    distinctive_terms = {
+        term for term in requirement_terms
+        if document_frequencies.get(term, 0) / max(document_count, 1) <= 0.15
+    }
+    distinctive_coverage = (
+        len(distinctive_terms & evidence_terms) / len(distinctive_terms)
+        if distinctive_terms else exact_coverage
+    )
+    expanded_terms = set(expanded_query(requirement_text)) - requirement_terms
+    concept_coverage = (
+        len(expanded_terms & evidence_terms) / len(expanded_terms)
+        if expanded_terms else 0.0
+    )
+    confidence = min(1.0, 0.65 * exact_coverage + 0.25 * distinctive_coverage + 0.10 * concept_coverage)
+
+    if is_credential_requirement(requirement_text):
+        classification = "no_confirmed_evidence"
+        reason = "Credential or experience-duration requirements must be checked outside project-story evidence."
+    elif exact_coverage >= 0.35 and (distinctive_coverage >= 0.25 or len(requirement_terms) <= 4):
+        classification = "direct"
+        reason = "The section explicitly covers a substantial share of the requirement and its distinctive terms."
+    elif exact_coverage >= 0.12 or concept_coverage >= 0.20:
+        classification = "transferable"
+        reason = "The section supports an adjacent competency but does not directly cover the full requirement."
+    else:
+        classification = "no_confirmed_evidence"
+        reason = "Lexical and concept coverage are too weak to treat this section as supporting evidence."
+
+    return {
+        "classification": classification,
+        "confidence": round(confidence, 4),
+        "exact_coverage": round(exact_coverage, 4),
+        "distinctive_coverage": round(distinctive_coverage, 4),
+        "concept_coverage": round(concept_coverage, 4),
+        "matched_exact_terms": sorted(exact_matches),
+        "unmatched_distinctive_terms": sorted(distinctive_terms - evidence_terms),
+        "reason": reason,
+    }
+
+
+def requirement_strategy(classification):
+    if classification == "direct":
+        return "Verify the source, then emphasize the confirmed evidence prominently."
+    if classification == "transferable":
+        return "Verify the adjacent competency and frame it as transferable without claiming the missing domain or method."
+    return "Do not claim this requirement directly; continue the application using stronger adjacent evidence elsewhere."
 
 
 def heading_weight(heading):
@@ -186,6 +359,8 @@ def main():
     parser.add_argument("--jd-docx", type=Path)
     parser.add_argument("--top", type=int, default=8)
     parser.add_argument("--per-project", type=int, default=3)
+    parser.add_argument("--per-requirement", type=int, default=3)
+    parser.add_argument("--mode", choices=["requirements", "flat"], default="requirements")
     parser.add_argument("--max-chars", type=int, default=1800)
     parser.add_argument("--format", choices=["json", "markdown"], default="markdown")
     parser.add_argument("--cache-dir", type=Path)
@@ -203,14 +378,20 @@ def main():
         return
 
     query_parts = [args.query or ""]
+    requirements = requirements_from_text(args.query or "") if args.query else []
     if args.query_file:
         query_path = args.query_file if args.query_file.is_absolute() else root / args.query_file
-        query_parts.append(query_path.read_text(encoding="utf-8"))
+        query_file_text = query_path.read_text(encoding="utf-8")
+        query_parts.append(query_file_text)
+        requirements.extend(requirements_from_text(query_file_text))
     if args.jd_docx:
         jd_path = args.jd_docx if args.jd_docx.is_absolute() else root / args.jd_docx
         jd = Document(jd_path)
         query_parts.extend(p.text for p in jd.paragraphs if p.text.strip())
         query_parts.extend(cell.text for table in jd.tables for row in table.rows for cell in row.cells)
+        requirements.extend(requirements_from_docx(jd_path))
+    for index, requirement in enumerate(requirements, 1):
+        requirement["requirement_id"] = f"R{index}"
     query_text = "\n".join(query_parts).strip()
     if not query_text:
         raise SystemExit("Provide --query and/or --jd-docx")
@@ -237,52 +418,141 @@ def main():
                 "ranking_text": catalog_text + " " + section["heading"] + " " + section["text"],
             })
 
-    query_tokens = expanded_query(query_text)
-    scores = bm25_scores([tokens(item["ranking_text"]) for item in candidates], query_tokens)
-    for item, score in zip(candidates, scores):
-        multiplier, section_type = heading_weight(item["section"]["heading"])
-        item["score"] = round(score * multiplier, 4)
-        item["section_type"] = section_type
-    ranked = []
-    project_counts = Counter()
-    for item in sorted(candidates, key=lambda candidate: candidate["score"], reverse=True):
-        project_key = item["project"].get("source_document_path", "")
-        if project_counts[project_key] >= max(args.per_project, 1):
-            continue
-        ranked.append(item)
-        project_counts[project_key] += 1
-        if len(ranked) >= max(args.top, 1):
-            break
+    document_tokens = [tokens(item["ranking_text"]) for item in candidates]
+    evidence_tokens = [
+        tokens(item["section"]["heading"] + " " + item["section"]["text"])
+        for item in candidates
+    ]
+    evidence_document_frequencies = Counter()
+    for section_tokens in evidence_tokens:
+        evidence_document_frequencies.update(set(section_tokens))
 
-    results = []
-    for item in ranked:
+    def result_for(item, score, requirement=None):
         project, section = item["project"], item["section"]
         excerpt = section["text"][:args.max_chars]
-        results.append({
+        result = {
             "retrieval_status": "Candidate only - verify against source before confirming",
-            "score": item["score"],
+            "score": round(score, 4),
             "project_name": project.get("project_name"),
             "employer_or_experience": project.get("employer_or_experience"),
             "source_document_path": project.get("source_document_path"),
             "section_index": section["section_index"],
             "heading": section["heading"],
-            "section_type": item["section_type"],
+            "section_type": heading_weight(section["heading"])[1],
             "paragraph_start": section["paragraph_start"],
             "paragraph_end": section["paragraph_end"],
             "excerpt": excerpt,
             "excerpt_truncated": len(section["text"]) > len(excerpt),
-        })
+        }
+        if requirement:
+            result["requirement_id"] = requirement["requirement_id"]
+            result["requirement_category"] = requirement["category"]
+            result["evidence_strength"] = candidate_strength(
+                requirement["text"],
+                section["heading"] + " " + section["text"],
+                evidence_document_frequencies,
+                len(candidates),
+            )
+            if (
+                result["section_type"] == "derivative-summary"
+                and result["evidence_strength"]["classification"] == "direct"
+            ):
+                result["evidence_strength"]["classification"] = "transferable"
+                result["evidence_strength"]["reason"] = (
+                    "Derivative summary sections may route to evidence but cannot establish a direct match."
+                )
+        return result
+
+    def rank_for_query(text, weight=1.0, limit=None):
+        raw_scores = bm25_scores(document_tokens, expanded_query(text))
+        scored = []
+        for item, raw_score in zip(candidates, raw_scores):
+            heading_multiplier, _ = heading_weight(item["section"]["heading"])
+            scored.append((item, raw_score * heading_multiplier * weight))
+        ranked = []
+        project_counts = Counter()
+        for item, score in sorted(scored, key=lambda pair: pair[1], reverse=True):
+            if score <= 0:
+                continue
+            project_key = item["project"].get("source_document_path", "")
+            if project_counts[project_key] >= max(args.per_project, 1):
+                continue
+            ranked.append((item, score))
+            project_counts[project_key] += 1
+            if len(ranked) >= max(limit or args.top, 1):
+                break
+        return ranked
+
+    requirement_results = []
+    portfolio_by_section = {}
+    if args.mode == "requirements" and requirements:
+        for requirement in requirements:
+            ranked = rank_for_query(requirement["text"], requirement["weight"], args.per_requirement)
+            matches = [result_for(item, score, requirement) for item, score in ranked]
+            suggested_matches = [
+                match for match in matches
+                if match["evidence_strength"]["classification"] != "no_confirmed_evidence"
+            ]
+            if suggested_matches:
+                best_classification = max(
+                    suggested_matches,
+                    key=lambda match: (
+                        CLASSIFICATION_PRIORITY[match["evidence_strength"]["classification"]],
+                        match["evidence_strength"]["confidence"],
+                    ),
+                )["evidence_strength"]["classification"]
+            else:
+                best_classification = "no_confirmed_evidence"
+            requirement_results.append({
+                **requirement,
+                "evidence_classification": best_classification,
+                "resume_strategy": requirement_strategy(best_classification),
+                "blocks_resume_generation": False,
+                "suggested_candidates": suggested_matches,
+                "retrieval_candidates": matches,
+            })
+            for rank, match in enumerate(suggested_matches, 1):
+                key = (match["source_document_path"], match["section_index"])
+                prior_requirements = portfolio_by_section.get(key, {}).get("matched_requirements", [])
+                prior_portfolio_score = portfolio_by_section.get(key, {}).get("portfolio_score", 0.0)
+                if key not in portfolio_by_section or match["score"] > portfolio_by_section[key]["score"]:
+                    portfolio_by_section[key] = dict(match)
+                    portfolio_by_section[key]["matched_requirements"] = list(prior_requirements)
+                portfolio_by_section[key]["portfolio_score"] = round(
+                    prior_portfolio_score + requirement["weight"] / rank, 4
+                )
+                portfolio_by_section[key].setdefault("matched_requirements", [])
+                if requirement["requirement_id"] not in portfolio_by_section[key]["matched_requirements"]:
+                    portfolio_by_section[key]["matched_requirements"].append(requirement["requirement_id"])
+        results = sorted(
+            portfolio_by_section.values(), key=lambda item: item["portfolio_score"], reverse=True
+        )[:max(args.top, 1)]
+    else:
+        results = [result_for(item, score) for item, score in rank_for_query(query_text)]
 
     payload = {
         "notice": "Retrieval results are not confirmed evidence. Re-open the original source section before drafting claims.",
         "cache_directory": str(cache_dir.resolve()),
         "cache_status": cache_status,
+        "mode": "requirements" if args.mode == "requirements" and requirements else "flat",
+        "requirement_weights": REQUIREMENT_CATEGORY_WEIGHTS,
+        "requirements": requirement_results,
         "results": results,
     }
     if args.format == "json":
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         print(payload["notice"])
+        if payload["mode"] == "requirements":
+            for requirement in requirement_results:
+                print(f"\n# {requirement['requirement_id']} [{requirement['category']}, {requirement['evidence_classification']}, weight {requirement['weight']}] {requirement['text']}")
+                print(f"Strategy: {requirement['resume_strategy']}")
+                for index, result in enumerate(requirement["retrieval_candidates"], 1):
+                    strength = result["evidence_strength"]
+                    print(f"\n## {index}. {result['project_name']} - {result['heading']} (score {result['score']}, {strength['classification']}, confidence {strength['confidence']})")
+                    print(f"Source: {result['source_document_path']} | section {result['section_index']} | paragraphs {result['paragraph_start']}-{result['paragraph_end']}")
+                    print(result["excerpt"])
+            return
         for index, result in enumerate(results, 1):
             print(f"\n## {index}. {result['project_name']} — {result['heading']} (score {result['score']})")
             print(f"Source: {result['source_document_path']} | section {result['section_index']} | paragraphs {result['paragraph_start']}-{result['paragraph_end']}")

@@ -29,6 +29,7 @@ The evidence-verification and document-QA workflow is profession-agnostic. Suppo
 - Labels evidence as Confirmed, Needs confirmation, or Unsupported
 - Uses a lightweight project catalog and hash-invalidated local retrieval cache
 - Verifies shortlisted evidence against original DOCX sections
+- Distinguishes direct, transferable, and unsupported project evidence without blocking stretch applications
 - Preserves the base resume's structure and visual hierarchy
 - Supports private, workspace-specific experience policies
 - Prevents silent overwrites and requires rendered document QA
@@ -37,13 +38,18 @@ The evidence-verification and document-QA workflow is profession-agnostic. Suppo
 
 Clone the repository into a workspace or copy `.agents/skills/resume-tailor/` into the corresponding project-scoped skills directory.
 
-Install the Python dependencies:
+Install the two Python dependencies:
 
 ```powershell
 py -m pip install -r requirements.txt
 ```
 
-Python 3.11 or newer is recommended. Microsoft Word is supported by the included Windows PDF-export helper. A compatible DOCX-to-PDF renderer such as LibreOffice can be used on other systems.
+Python 3.11 or newer is recommended. `python-docx` handles DOCX files, while PyMuPDF converts QA PDFs into page images. The skill does not require `pdf2image` or Poppler.
+
+For DOCX-to-PDF conversion, use one renderer, not both:
+
+- On Windows with Microsoft Word, use the included `export-word-pdf.ps1` helper.
+- Otherwise, install LibreOffice or use a compatible renderer already available in your environment.
 
 ## Workspace setup
 
@@ -82,7 +88,10 @@ Complete project stories
 Lightweight project catalog
         |
         v
-JD-driven section retrieval
+Weighted JD requirements
+        |
+        v
+Per-requirement section retrieval
         |
         v
 Direct source verification
@@ -109,9 +118,11 @@ The catalog helps decide which projects are likely to matter for a JD, but delib
 
 ### 2. JD-driven section retrieval
 
-`retrieve-project-evidence.py` extracts heading-based sections from the current DOCX files and ranks them against the complete JD. It combines lexical BM25-style ranking, limited concept expansion, catalog routing metadata, heading-aware weighting, and a per-project result cap.
+`retrieve-project-evidence.py` separates the JD into responsibilities, minimum qualifications, role context, and preferred qualifications, then ranks project-story sections independently for every requirement. Responsibilities and minimum qualifications receive more weight than preferred qualifications. The script combines lexical BM25-style ranking, limited concept expansion, catalog routing metadata, heading-aware weighting, and per-project and per-requirement result caps.
 
-The per-project cap prevents one highly similar project from crowding every other project out of the candidate set. Primary action, method, testing, and result sections receive preference, while derivative interview summaries are down-weighted.
+The per-project cap prevents one highly similar project from crowding every other project out of a requirement's candidate set. Primary action, method, testing, and result sections receive preference, while derivative interview summaries are down-weighted.
+
+Candidates are labeled `direct`, `transferable`, or `no_confirmed_evidence` from their exact, distinctive, and concept coverage against the original section text. These labels are advisory rather than application gates: transferable evidence must not claim the missing domain, and absent evidence does not prevent the workflow from producing a truthful stretch-application resume. JSON output includes a non-blocking resume strategy for every requirement and a deduplicated portfolio shortlist that excludes unsupported candidates. Flat whole-JD ranking remains available only as a diagnostic fallback.
 
 ### 3. Hash-invalidated local cache
 
