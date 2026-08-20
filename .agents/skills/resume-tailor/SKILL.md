@@ -11,18 +11,11 @@ Tailor evidence, not keywords. Treat complete project-story documents as the pri
 
 Use the installed `documents` skill when available for DOCX reading and editing guidance. Preserve an existing resume with minimal, local formatting changes; do not apply a new design preset.
 
-For visual QA, prefer this skill's lightweight bundled path so users do not need overlapping PDF stacks:
-
-1. On Windows with Microsoft Word, export DOCX to PDF with `scripts/export-word-pdf.ps1`.
-2. Otherwise, use an available LibreOffice installation for DOCX-to-PDF conversion.
-3. Render the resulting PDF to page PNGs with `scripts/render-pdf-pages.py`.
-
-This path requires only the packages in the repository's `requirements.txt`. Do not require `pdf2image` or Poppler. Use another renderer, including the `documents` skill's renderer, only when its dependencies are already available; do not ask the user to install a second rendering stack merely for redundancy.
+For visual QA, export with `scripts/export-word-pdf.ps1` on Windows or LibreOffice elsewhere, then render page PNGs with `scripts/render-pdf-pages.py`. Use the repository requirements and do not require an additional PDF stack merely for redundancy.
 
 ## Guardrails
 
-- Never invent or upgrade tools, methods, ownership, scope, scale, causality, metrics, or results.
-- Classify evidence as `Confirmed`, `Needs confirmation`, or `Unsupported`. Only confirmed evidence may enter the resume.
+- Never invent or upgrade tools, methods, ownership, scope, scale, causality, metrics, or results. Only directly verified or user-confirmed claims may enter the final resume; retrieval results and reasonable inferences remain candidates until verified or explicitly confirmed.
 - Preserve confirmed metrics exactly. Generalize confidential or proprietary details when public use is uncertain, and flag the generalization.
 - Never infer contribution or ownership from a screenshot alone.
 - Do not create a detailed persistent evidence index. Use local retrieval to shortlist current source sections, then verify selected evidence directly against the original project stories for every tailoring task.
@@ -60,6 +53,8 @@ Separate `Core requirements`, `Supporting requirements`, `ATS keywords`, `Prefer
 
 Keep requirement boundaries intact for retrieval. Do not collapse the JD into a single keyword query.
 
+Define the role-specific value proposition that the resume should communicate. Identify the target professional identity, two or three most important strengths, the value those strengths enable, and one credible differentiator when available. Use this value proposition to guide the summary and early-bullet emphasis; do not substitute branding language for evidence.
+
 ### 3. Read the selected base resume
 
 Require the user to identify one base resume. Record its page size/count, margins, fonts, sizes, colors, section order/headings, employer and position order, dates, locations, indentation, bullet style/count, spacing, alignment, header, and contact layout.
@@ -78,36 +73,22 @@ Apply these experience-selection rules:
 
 ### 4. Build a temporary evidence map
 
-Read `references/retrieval-workflow.md` and use its staged retrieval process:
-
-1. Route broadly with the lightweight catalog.
-2. Run `scripts/retrieve-project-evidence.py` against the complete saved JD. Use its default requirement-level mode to separate and weight responsibilities, minimum qualifications, role context, and preferred qualifications, then review candidates for each requirement. Use `--mode flat` only as a diagnostic fallback for an unstructured query.
-3. Use the hash-invalidated cache only as disposable acceleration data. Never treat cached text or rankings as evidence.
-4. Re-open each shortlisted section directly from its original DOCX with `--verify-path` and `--section-index` before classifying a claim as confirmed.
-5. When evidence spans ownership, method, and result sections, add `--context-sections 1` or increase it selectively. Combine sections only when they clearly describe the same project scope and remain mutually consistent.
-6. Read additional projects when ownership, context, methods, or results remain unclear.
-
-Treat retrieval classifications as advisory portfolio guidance:
-
-- `direct`: the section explicitly covers a substantial share of the requirement and its distinctive terms;
-- `transferable`: the section supports an adjacent competency but not the full domain or method;
-- `no_confirmed_evidence`: project-story evidence is too weak, or the requirement is a credential that belongs in another source.
-
-Never let `transferable` wording claim the missing domain or method. Never let `no_confirmed_evidence` stop resume generation by itself; omit the unsupported claim and continue with stronger adjacent evidence. Retrieval classifications remain candidates until direct source verification.
-
-Search across multiple projects before choosing evidence, but do not load every complete document into context by default. Use selective image inspection only when the document refers to an image, evidence may be missing, a UI clarifies the work, a chart may verify a result, or verification is needed.
+Read and follow `references/retrieval-workflow.md`. Route with the catalog, retrieve requirement-level candidates, and verify every selected claim directly against original project-story sections. Treat cache content, rankings, and classifications as advisory only. Never present transferable evidence as the missing domain or method. Search selectively across projects and inspect images only when they can resolve a material evidence question.
 
 Build an ephemeral map with: JD requirement; best supporting project; specific component; confirmed evidence; source section; status; strength; recommended angle; clarification needed. Do not save detailed evidence as a reusable index.
+
+When an accomplishment lacks sufficient context or impact, diagnose the Situation or objective, Obstacle or analytical problem, Action and method, and Result before drafting. Prefer a confirmed quantitative result, then a confirmed operational or decision outcome, then defensible qualitative stakeholder value. Ask the smallest targeted question needed to resolve a material gap. Avoid generic endings such as `supported data-informed decisions` when the evidence can identify what changed for the stakeholder.
 
 Use role-specific emphasis:
 
 - Product Analytics: lifecycle, adoption, funnel behavior, experimentation, KPIs, rollout, decisions.
 - Data Science: problem formulation, preparation, feature engineering, statistics/ML, evaluation, explainability, deployment, impact.
 - AI/LLM: LLM/RAG architecture, retrieval, evaluation, experiments, workflow integration, responsible AI, adoption.
+- Data, analytics, product, and technology roles: retain at least one confirmed LLM, GenAI, or agentic-AI accomplishment in Experience when relevant evidence exists. Treat this as a portfolio preference, not a keyword mandate; preserve the actual system architecture and never insert AI terminology into unrelated work or displace substantially stronger core evidence.
 
 ### 5. Design the bullet portfolio
 
-Default each bullet to one distinct project or substantial business problem. Do not combine unrelated projects, split one project into cosmetic variants, or let one project provide a majority under an experience without explicit approval.
+Default each bullet to one distinct project or substantial business problem. Consolidate source bullets that merely describe stages of the same end-to-end project, but do not combine unrelated projects, split one project into cosmetic variants, or let one project provide a majority under an experience without explicit approval. Name the project, product, platform, or business problem when doing so helps an external reader understand the accomplishment.
 
 Create a proposed portfolio organized by retained experience, with bullet position, represented project/problem, primary competency, JD relevance, and whether it keeps, replaces, or reframes an existing bullet. Review and tailor all retained experiences. Place the strongest relevant evidence early within each experience while preserving breadth across problems, methods, stakeholders, and outcomes. When a configured bullet range permits multiple counts, justify the selected count using relevance, evidence strength, diversity, and page fit. Surface any relevance-versus-diversity tradeoff and explain any decision to remove an optional experience.
 
@@ -123,13 +104,17 @@ Before generating the final resume, show:
 6. evidence gaps and factual questions;
 7. draft revised bullets.
 
-Wait only when a material claim, sensitive detail, filename conflict, or structural change requires confirmation.
+Always wait for explicit content approval before creating or modifying the final tailored resume. Treat the approved portfolio, ordering, and bullet count as locked. During layout optimization, shorten wording only when meaning is preserved; never remove, replace, or reorder approved content without further approval.
 
 ### 7. Write from confirmed evidence
 
-Draft with a flexible pattern: `Action + problem/scope + method + decision/implementation + outcome`. Prefer substantive evidence and emphasis changes over keyword swaps. Use accurate JD terminology naturally, past tense for completed work, a credible professional voice, and lengths that fit the base layout. Represent the documented level of ownership precisely and do not turn association into causality.
+Draft with a flexible pattern: `Primary action verb + named project or business problem + method/scope + concrete result`. Prefer substantive evidence and emphasis changes over keyword swaps. Use accurate JD terminology naturally, past tense for completed work, a credible professional voice, and lengths that fit the base layout. Represent the documented level of ownership precisely and do not turn association into causality.
 
+- Write the summary from the role-specific value proposition, typically in two or three concise sentences. Communicate one professional identity, two or three relevant strengths, the value delivered, and a credible differentiator when useful. Differentiate the candidate rather than list generic qualifications or years-of-experience formulas, without turning the summary into a resume recap.
+- Frame accomplishments around why the work mattered, using a confirmed metric or a defensible non-quantified outcome such as faster access to evidence, reduced processing time, improved risk assessment, a completed review cycle, fewer errors, stakeholder use, or a reusable capability. State what changed for the stakeholder instead of ending with a generic claim. When stronger impact is plausible but undocumented, label it `Needs confirmation`, explain the inference, and obtain user approval. Never invent impact, causality, adoption, ownership, scope, or metrics.
 - Begin every Experience bullet with one clear primary action verb. Do not coordinate two opening verbs, such as `Built and optimized` or `Designed and implemented`; select the verb that best represents the primary contribution and describe supporting work later in the sentence.
+- Calibrate bullet length to JD relevance, evidence strength, and page value instead of forcing uniform length. Allow the strongest, most role-relevant bullets to use up to three rendered lines when the added detail materially strengthens the match; keep supporting or lower-priority bullets shorter. Never pad a weak bullet or remove useful evidence merely to make bullet lengths look consistent.
+- Translate internal, proprietary, or domain-specific labels into audience-friendly language when the exact term does not help an external reviewer. For example, prefer `legal documents` over `case-assessment documents`. Preserve the underlying scope and meaning, and retain the original term only when the JD uses it or accuracy requires it.
 - Do not use em dashes (`—`) in resume content because they can make the writing feel AI-generated. Rewrite with a comma, semicolon, colon, parentheses, or a separate sentence. En dashes (`–`) remain appropriate for numeric and date ranges such as `2023–Present`.
 
 ### 8. Audit and deliver
@@ -138,14 +123,16 @@ Trace every substantive claim to a current project story, selectively verified i
 
 Save to the existing appropriate output folder. If no convention exists, use `Company Name_Job Name_Resume.docx`. Preserve the base resume's visual structure, page count, and density.
 
+Normalize section-heading rules before rendering. When headings use bottom paragraph borders, run `scripts/normalize-section-rules.py` on the tailored DOCX so every rule uses one canonical border definition and explicit zero left/right paragraph indents. Audit the rendered PDF to confirm that all section rules begin and end at the same horizontal positions; matching color and thickness alone is insufficient.
+
 Prioritize first-page value and utilization because some reviewers may not continue to page 2. Put the strongest, most role-relevant evidence on page 1 and use its available space well. Avoid manual page breaks, content ordering, or premature section moves that leave material avoidable whitespace on page 1. Prefer moving relevant content forward or rebalancing natural breaks before changing typography or spacing; never make the page crowded, reduce readability, shrink text below the base resume's size, or add filler merely to make page 1 look full.
 
-Export the base and tailored DOCX to PDF with the bundled Word helper on Windows or LibreOffice elsewhere, then create page PNGs with `scripts/render-pdf-pages.py`. Inspect every page PNG at 100%. Compare page count, margins, fonts/sizes, sections, indentation, spacing, alignment, wrapping, page breaks, and first-page utilization. Iterate and re-render after changes. If neither Word nor LibreOffice is available, perform structural OOXML checks and disclose that visual QA could not be completed. Do not install or require `pdf2image` or Poppler for this workflow.
+Render the source and tailored DOCX using the DOCX-support path and inspect every page at 100%. Compare page count, margins, typography, sections, indentation, spacing, alignment, wrapping, page breaks, and first-page utilization. Iterate after changes. If Word and LibreOffice are unavailable, perform structural checks and disclose that visual QA was not completed.
 
 After the final render passes, clean up task-created working artifacts before delivery. Inventory the exact paths first, then remove only artifacts created during the current tailoring task, including QA PDFs, rendered page PNGs and their output folders, temporary editing or conversion scripts, temporary extracted text, and disposable comparison files. Never remove the final resume, saved JD, source materials, caches owned by another workflow, pre-existing user files, or any artifact whose ownership is uncertain. Verify with a final filesystem check that no task-created QA or temporary artifacts remain outside an intentional temporary/cache location.
 
 Return a concise coverage report with strongly supported, partially supported, and unsupported requirements; project diversity by final bullet; important changes; and claims needing confirmation.
 
-## Failure conditions
+## Shipping gate
 
-Do not finalize when the base resume is unspecified, required naming is ambiguous, a required experience is absent, an experience violates configured bullet limits, fewer than the configured minimum experiences remain, unresolved material claims remain in draft bullets, a project unintentionally dominates, an existing file would be overwritten, page 1 is materially underfilled because of an avoidable page break or content-ordering choice, the latest DOCX has not passed the render gate (except the documented LibreOffice fallback), or task-created QA and temporary artifacts have not been cleaned up and verified.
+Do not finalize until the source and output name are unambiguous, the user has approved the content portfolio, every substantive claim is verified or user-confirmed, the resume complies with any local experience policy, the latest DOCX passes structural and visual QA, and task-created temporary artifacts are cleaned up.
